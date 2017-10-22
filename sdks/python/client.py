@@ -30,9 +30,13 @@ class NetworkHandler(ss.StreamRequestHandler):
 
 class Game:
     def __init__(self):
-        self.units = [] # set of unique unit ids
+        # self.units = set() # set of unique unit ids
+        self.units = []
         self.tiles = []
         self.directions = ['N', 'S', 'E', 'W']
+        # self.numWorkers = 0
+        # self.numScouts = 0
+        # self.numTanks = 0
 
     def get_random_move(self, json_data):
         units = set([unit['id'] for unit in json_data['unit_updates'] if unit['type'] != 'base'])
@@ -48,20 +52,31 @@ class Game:
         move = 'MOVE'
         gather = 'GATHER'
         create = 'CREATE'
+        shoot = 'SHOOT'
         commands = {"commands": []}
-        # unitIDs = set([unit['id'] for unit in json_data['unit_updates'] if unit['type'] != 'base'])
+        # add new units
         units = []
         for unit in json_data['unit_updates']:
+            add = True
             if unit['type'] != 'base':
-                units.append(unit)
-        # tiles = set(str([tile['x']) + ',' + str(tile['y'])] for tile in json_data['tile_updates'])
-        #tiles = set(for tile in json_data['tile_updates'])
+                for u in self.units:
+                    if unit['id'] == u['id']:
+                        add = False
+                if add:
+                    units.append(unit)
+        self.units.extend(units)
+        # add new tiles
         tiles = []
         for tile in json_data['tile_updates']:
-            tiles.append(tile)
-        self.units.extend(units) # add any additional ids we encounter
+            add = True
+            if tile['visible']:
+                for t in self.tiles:
+                    if t['x'] == tile['x'] and t['y'] == tile['y']:
+                        add = False
+                if add:
+                    tiles.append(tile)
         self.tiles.extend(tiles)
-        # find out if need to create any units
+        # count units alive (for create)
         workersAlive = 0
         scoutsAlive = 0
         tanksAlive = 0
@@ -72,8 +87,7 @@ class Game:
                 scoutsAlive += 1
             if unit['type'] == 'tank' and unit['status'] != 'dead':
                 tanksAlive += 1
-        #print("workers:" + str(workersAlive) + '\n' + "scouts:" + str(scoutsAlive)
-        #      + '\n' + "tanks:" + str(tanksAlive))
+        # add needed units
         if workersAlive < 2:
             command = {"command": create, "type": 'worker'}
             commands['commands'].append(command)
@@ -83,46 +97,49 @@ class Game:
         if tanksAlive < 1:
             command = {"command": create, "type": 'tank'}
             commands['commands'].append(command)
+        # make moves for each unit in self.units
         for moveUnit in self.units:
             # only make a move if idle (can't move otherwise)
-            # print(moveUnit)
             if moveUnit['status'] == 'idle':
+                # worker moves
                 if moveUnit['type'] == 'worker':
                     moved = False
-                    # print(moveUnit)
                     if moveUnit['resource'] == 0: # get more resources
-                        # if N/S/E/W has resources, gather
+                        # if tile to N/S/E/W has resources, gather
                         for tile in self.tiles:
-                            # print(tile)
                             # north
                             if tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] + 1):
-                                if tile['resources'] != None:
-                                    direction = 'N'
-                                    command = {"command": gather, "unit": moveUnit['id'], "dir": direction}
-                                    moved = True
-                                    break;
+                                if type(tile['resources']) == 'int':
+                                    if tile['resources'] > 0:
+                                        direction = 'N'
+                                        command = {"command": gather, "unit": moveUnit['id'], "dir": direction}
+                                        moved = True
+                                        break;
                             # south
                             elif tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] - 1):
-                                if tile['resources'] != None:
-                                    direction = 'S'
-                                    command = {"command": gather, "unit": moveUnit['id'], "dir": direction}
-                                    moved = True
-                                    break;
+                                if type(tile['resources']) == 'int':
+                                    if tile['resources'] > 0:
+                                        direction = 'S'
+                                        command = {"command": gather, "unit": moveUnit['id'], "dir": direction}
+                                        moved = True
+                                        break;
                             # east
                             elif tile['x'] == (moveUnit['x'] + 1) and tile['y'] == moveUnit['y']:
-                                if tile['resources'] != None:
-                                    direction = 'E'
-                                    command = {"command": gather, "unit": moveUnit['id'], "dir": direction}
-                                    moved = True
-                                    break;
+                                if type(tile['resources']) == 'int':
+                                    if tile['resources'] > 0:
+                                        direction = 'E'
+                                        command = {"command": gather, "unit": moveUnit['id'], "dir": direction}
+                                        moved = True
+                                        break;
                             # west
                             elif tile['x'] == (moveUnit['x'] - 1) and tile['y'] == moveUnit['y']:
-                                if tile['resources'] != None:
-                                    direction = 'W'
-                                    command = {"command": gather, "unit": moveUnit['id'], "dir": direction}
-                                    moved = True
-                                    break;
-                        # if N+1/S+1/E+1/W+1 has resources, moveD = True TODO
+                                if type(tile['resources']) == 'int':
+                                    if tile['resources'] > 0:
+                                        direction = 'W'
+                                        command = {"command": gather, "unit": moveUnit['id'], "dir": direction}
+                                        moved = True
+                                        break;
+                        # use A* to find nearby tile with resource and go to
                         # if didn't gather or move to gather, just move where not blocked
                         if moved == False:
                             for tile in self.tiles:
@@ -166,6 +183,7 @@ class Game:
                             moveN = True
                         # for visible tiles
                         # if moveD && pos clear = move
+                    # actually make the move (unless gathered)
                     if moved == False:
                         for tile in self.tiles:
                             if moveN:
@@ -174,29 +192,54 @@ class Game:
                                         direction = 'N'
                                         command = {"command": move, "unit": moveUnit['id'], "dir": direction}
                                         break;
-                            if moveS:
+                            elif moveS:
                                 if tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] - 1):
                                     if tile['blocked'] == False:
                                         direction = 'S'
                                         command = {"command": move, "unit": moveUnit['id'], "dir": direction}
                                         break;
-                            if moveE:
+                            elif moveE:
                                 if tile['x'] == (moveUnit['x'] + 1) and tile['y'] == moveUnit['y']:
                                     if tile['blocked'] == False:
                                         direction = 'E'
                                         command = {"command": move, "unit": moveUnit['id'], "dir": direction}
                                         break;
-                            if moveW:
+                            elif moveW:
                                 if tile['x'] == (moveUnit['x'] - 1) and tile['y'] == moveUnit['y']:
                                     if tile['blocked'] == False:
                                         direction = 'W'
                                         command = {"command": move, "unit": moveUnit['id'], "dir": direction}
                                         break;
+                # scout moves
+                elif moveUnit['type'] == 'scout':
+                    if moveUnit['status'] == 'idle':
+                        if moveUnit['can_attack']:
+                            for tile in self.tiles:
+                                # TODO if <= 1, melee
+                                # attack if at base / opposing team nearby
+                                if (abs(moveUnit['x'] - tile['x'])) <= 5 and (abs(moveUnit['y'] - tile['y'])) <= 5:
+                                    if len(tile['units']) > 0:
+                                        for enemy in tile['units']:
+                                            command = {"command": shoot, "unit": enemy['id'], "dx": tile['x'], "dy": tile['y']}
+                        # use A* to expand map TODO - random rn
+                        else:
+                            direction = random.choice(self.directions)
+                            command = {"command": move, "unit": moveUnit['id'], "dir": direction}
+                # tank moves (only unit left)
                 else :
-                    # random
-                    direction = random.choice(self.directions)
-                    move = 'MOVE'
-                    command = {"command": move, "unit": moveUnit['id'], "dir": direction}
+                    if moveUnit['status'] == 'idle':
+                        if moveUnit['can_attack']:
+                            for tile in self.tiles:
+                                # TODO if <= 1, melee
+                                # attack if at base / opposing team nearby
+                                if (abs(moveUnit['x'] - tile['x'])) <= 2 and (abs(moveUnit['y'] - tile['y'])) <= 2:
+                                    if len(tile['units']) > 0:
+                                        for enemy in tile['units']:
+                                            command = {"command": shoot, "unit": enemy['id'], "dx": tile['x'], "dy": tile['y']}
+                        # use A* to search for opposing base TODO - random rn
+                        else:
+                            direction = random.choice(self.directions)
+                            command = {"command": move, "unit": moveUnit['id'], "dir": direction}
                 commands['commands'].append(command)
         response = json.dumps(commands, separators=(',',':')) + '\n'
         print(response)
