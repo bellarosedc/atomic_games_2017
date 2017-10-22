@@ -22,6 +22,7 @@ class NetworkHandler(ss.StreamRequestHandler):
             # uncomment the following line to see pretty-printed data
             # print(json.dumps(json_data, indent=4, sort_keys=True))
             response = game.get_random_move(json_data).encode()
+            # response = game.get_move(json_data).encode()
             self.wfile.write(response)
 
 
@@ -35,6 +36,20 @@ class Game:
         units = set([unit['id'] for unit in json_data['unit_updates'] if unit['type'] != 'base'])
         self.units |= units # add any additional ids we encounter
         unit = random.choice(tuple(self.units))
+        direction = random.choice(self.directions)
+        move = 'MOVE'
+        command = {"commands": [{"command": move, "unit": unit, "dir": direction}]}
+        response = json.dumps(command, separators=(',',':')) + '\n'
+        return response
+
+    def get_move(self, json_data):
+        units = set([unit['id'] for unit in json_data['unit_updates'] if unit['type'] != 'base'])
+        self.units |= units # add any additional ids we encounter
+        # TODO make unit not be random, how to choose one ?
+        # go in order of all of them? like taking turns? use turn mod num units ? NO
+        # find unit that is available to move
+        unit = random.choice(tuple(self.units))
+        # TODO make direction not be random, how to choose one?
         direction = random.choice(self.directions)
         move = 'MOVE'
         command = {"commands": [{"command": move, "unit": unit, "dir": direction}]}
