@@ -112,18 +112,18 @@ class Game:
                                     commands['commands'].append(command)
                                     moved = True
                                     break;
-                            # south
-                            elif not moved and tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] + 1):
-                                if tile['resources'] != None:
-                                    direction = 'S'
-                                    command = {"command": gather, "unit": moveUnit['id'], "dir": direction}
-                                    commands['commands'].append(command)
-                                    moved = True
-                                    break;
                             # east
                             elif not moved and tile['x'] == (moveUnit['x'] + 1) and tile['y'] == moveUnit['y']:
                                 if tile['resources'] != None:
                                     direction = 'E'
+                                    command = {"command": gather, "unit": moveUnit['id'], "dir": direction}
+                                    commands['commands'].append(command)
+                                    moved = True
+                                    break;
+                            # south
+                            elif not moved and tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] + 1):
+                                if tile['resources'] != None:
+                                    direction = 'S'
                                     command = {"command": gather, "unit": moveUnit['id'], "dir": direction}
                                     commands['commands'].append(command)
                                     moved = True
@@ -145,7 +145,7 @@ class Game:
                                 if dist < nextDist:
                                     nextTile = possNext
                         # found a tile, find possible options
-                        if nextTile != self.tiles[0]:
+                        if nextDist != 1000:
                             # north
                             if nextTile['y'] < moveUnit['y']:
                                 moveN = True
@@ -184,7 +184,7 @@ class Game:
                                     else:
                                         moveW = True
                         # if didn't gather or find a move or move doesn't work, just move where not blocked
-                        if not moveN and not moveS and not moveE and not moveW:
+                        if not moved and not moveN and not moveS and not moveE and not moveW:
                             for tile in self.tiles:
                                 # north
                                 if tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] - 1):
