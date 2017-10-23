@@ -33,9 +33,6 @@ class Game:
         self.units = []
         self.tiles = []
         self.directions = ['N', 'S', 'E', 'W']
-        # self.numWorkers = 0
-        # self.numScouts = 0
-        # self.numTanks = 0
 
     def get_random_move(self, json_data):
         units = set([unit['id'] for unit in json_data['unit_updates'] if unit['type'] != 'base'])
@@ -83,17 +80,17 @@ class Game:
             if unit['type'] == 'tank' and unit['status'] != 'dead':
                 tanksAlive += 1
         # add needed units
-        if workersAlive < 2:
+        if workersAlive < 4:
             command = {"command": create, "type": 'worker'}
             commands['commands'].append(command)
-        if scoutsAlive < 1:
+        if scoutsAlive < 2:
             command = {"command": create, "type": 'scout'}
             commands['commands'].append(command)
         if tanksAlive < 1:
             command = {"command": create, "type": 'tank'}
             commands['commands'].append(command)
-        # make moves for each unit in self.units
         command = ''
+        # make moves for each unit in self.units
         for moveUnit in self.units:
             # only make a move if idle (can't move otherwise)
             if moveUnit['status'] == 'idle':
@@ -110,7 +107,6 @@ class Game:
                             # north
                             if not moved and tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] - 1):
                                 if tile['resources'] != None:
-                                    print("gather North")
                                     direction = 'N'
                                     command = {"command": gather, "unit": moveUnit['id'], "dir": direction}
                                     commands['commands'].append(command)
@@ -119,7 +115,6 @@ class Game:
                             # south
                             elif not moved and tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] + 1):
                                 if tile['resources'] != None:
-                                    print("gather South")
                                     direction = 'S'
                                     command = {"command": gather, "unit": moveUnit['id'], "dir": direction}
                                     commands['commands'].append(command)
@@ -128,7 +123,6 @@ class Game:
                             # east
                             elif not moved and tile['x'] == (moveUnit['x'] + 1) and tile['y'] == moveUnit['y']:
                                 if tile['resources'] != None:
-                                    print("gather East")
                                     direction = 'E'
                                     command = {"command": gather, "unit": moveUnit['id'], "dir": direction}
                                     commands['commands'].append(command)
@@ -137,7 +131,6 @@ class Game:
                             # west
                             elif not moved and tile['x'] == (moveUnit['x'] - 1) and tile['y'] == moveUnit['y']:
                                 if tile['resources'] != None:
-                                    print("gather West")
                                     direction = 'W'
                                     command = {"command": gather, "unit": moveUnit['id'], "dir": direction}
                                     commands['commands'].append(command)
@@ -172,18 +165,18 @@ class Game:
                                         moveN = False
                                     else:
                                         moveN = True
-                                # south
-                                elif moveS and tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] + 1):
-                                    if tile['blocked']:
-                                        moveS = False
-                                    else:
-                                        moveS = True
                                 # east
                                 elif moveE and tile['x'] == (moveUnit['x'] + 1) and tile['y'] == moveUnit['y']:
                                     if tile['blocked']:
                                         moveE = False
                                     else:
                                         moveE = True
+                                # south
+                                elif moveS and tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] + 1):
+                                    if tile['blocked']:
+                                        moveS = False
+                                    else:
+                                        moveS = True
                                 # west
                                 elif moveW and tile['x'] == (moveUnit['x'] - 1) and tile['y'] == moveUnit['y']:
                                     if tile['blocked']:
@@ -199,18 +192,18 @@ class Game:
                                         moveN = False
                                     else:
                                         moveN = True
-                                # south
-                                elif tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] + 1):
-                                    if tile['blocked']:
-                                        moveS = False
-                                    else:
-                                        moveS = True
                                 # east
                                 elif tile['x'] == (moveUnit['x'] + 1) and tile['y'] == moveUnit['y']:
                                     if tile['blocked']:
                                         moveE = False
                                     else:
                                         moveE = True
+                                # south
+                                elif tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] + 1):
+                                    if tile['blocked']:
+                                        moveS = False
+                                    else:
+                                        moveS = True
                                 # west
                                 elif tile['x'] == (moveUnit['x'] - 1) and tile['y'] == moveUnit['y']:
                                     if tile['blocked']:
@@ -245,18 +238,18 @@ class Game:
                                     commands['commands'].append(command)
                                     moved = True
                                     break;
-                        elif moveS and not moved:
-                            if tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] + 1):
-                                if tile['blocked'] == False:
-                                    direction = 'S'
-                                    command = {"command": move, "unit": moveUnit['id'], "dir": direction}
-                                    commands['commands'].append(command)
-                                    moved = True
-                                    break;
                         elif moveE and not moved:
                             if tile['x'] == (moveUnit['x'] + 1) and tile['y'] == moveUnit['y']:
                                 if tile['blocked'] == False:
                                     direction = 'E'
+                                    command = {"command": move, "unit": moveUnit['id'], "dir": direction}
+                                    commands['commands'].append(command)
+                                    moved = True
+                                    break;
+                        elif moveS and not moved:
+                            if tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] + 1):
+                                if tile['blocked'] == False:
+                                    direction = 'S'
                                     command = {"command": move, "unit": moveUnit['id'], "dir": direction}
                                     commands['commands'].append(command)
                                     moved = True
@@ -272,6 +265,7 @@ class Game:
                 # scout moves
                 elif moveUnit['type'] == 'scout':
                     if moveUnit['status'] == 'idle':
+                        moved = False
                         if moveUnit['can_attack']:
                             for tile in self.tiles:
                                 # TODO if <= 1, melee
@@ -280,13 +274,131 @@ class Game:
                                     if len(tile['units']) > 0:
                                         for enemy in tile['units']:
                                             command = {"command": shoot, "unit": enemy['id'], "dx": tile['x'], "dy": tile['y']}
-                        # use A* to expand map TODO - random rn
-                        else:
-                            direction = random.choice(self.directions)
-                            command = {"command": move, "unit": moveUnit['id'], "dir": direction}
+                                            commands['commands'].append(command)
+                                            moved = True
+                        # expand map TODO fixme
+                        if moved == False:
+                            moveN = False
+                            moveS = False
+                            moveE = False
+                            moveW = False
+                            nextDir = 'N'
+                            distN = 0
+                            distS = 0
+                            distE = 0
+                            distW = 0
+                            for possNext in self.tiles:
+                                if possNext['x'] < distN:
+                                    distN = possNext['x']
+                                if possNext['x'] > distS:
+                                    distS = possNext['x']
+                                if possNext['y'] < distW:
+                                    distW = possNext['y']
+                                if possNext['y'] > distE:
+                                    distE = possNext['y']
+                            if distN < distS and distN < distW and distN < distE:
+                                nextDir = 'N'
+                                moveN = True
+                            elif distW < distN and distW < distS and distW < distE:
+                                nextDir = 'W'
+                                moveE = True
+                            elif distS < distN and distS < distW and distS < distE:
+                                nextDir = 'S'
+                                moveS = True
+                            else:
+                                nextDir = 'E'
+                                moveW = True
+                            # found a direction, check options
+                            for tile in self.tiles:
+                                # north
+                                if nextDir == 'N' and tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] - 1):
+                                    if tile['blocked']:
+                                        moveN = False
+                                    else:
+                                        moveN = True
+                                # south
+                                elif nextDir == 'S' and tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] + 1):
+                                    if tile['blocked']:
+                                        moveS = False
+                                    else:
+                                        moveS = True
+                                # east
+                                elif nextDir == 'E' and tile['x'] == (moveUnit['x'] + 1) and tile['y'] == moveUnit['y']:
+                                    if tile['blocked']:
+                                        moveE = False
+                                    else:
+                                        moveE = True
+                                # west
+                                elif nextDir == 'W' and tile['x'] == (moveUnit['x'] - 1) and tile['y'] == moveUnit['y']:
+                                    if tile['blocked']:
+                                        moveW = False
+                                    else:
+                                        moveW = True
+                            # if didn't find a move
+                            if not moveN and not moveS and not moveE and not moveW:
+                                for tile in self.tiles:
+                                    # north
+                                    if tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] - 1):
+                                        if tile['blocked']:
+                                            moveN = False
+                                        else:
+                                            moveN = True
+                                    # east
+                                    elif tile['x'] == (moveUnit['x'] + 1) and tile['y'] == moveUnit['y']:
+                                        if tile['blocked']:
+                                            moveE = False
+                                        else:
+                                            moveE = True
+                                    # south
+                                    elif tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] + 1):
+                                        if tile['blocked']:
+                                            moveS = False
+                                        else:
+                                            moveS = True
+                                    # west
+                                    elif tile['x'] == (moveUnit['x'] - 1) and tile['y'] == moveUnit['y']:
+                                        if tile['blocked']:
+                                            moveW = False
+                                        else:
+                                            moveW = True
+                            # actually make move
+                            for tile in self.tiles:
+                                if moveN and not moved:
+                                    if tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] - 1):
+                                        if tile['blocked'] == False:
+                                            direction = 'N'
+                                            command = {"command": move, "unit": moveUnit['id'], "dir": direction}
+                                            commands['commands'].append(command)
+                                            moved = True
+                                            break;
+                                elif moveE and not moved:
+                                    if tile['x'] == (moveUnit['x'] + 1) and tile['y'] == moveUnit['y']:
+                                        if tile['blocked'] == False:
+                                            direction = 'E'
+                                            command = {"command": move, "unit": moveUnit['id'], "dir": direction}
+                                            commands['commands'].append(command)
+                                            moved = True
+                                            break;
+                                elif moveS and not moved:
+                                    if tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] + 1):
+                                        if tile['blocked'] == False:
+                                            direction = 'S'
+                                            command = {"command": move, "unit": moveUnit['id'], "dir": direction}
+                                            commands['commands'].append(command)
+                                            moved = True
+                                            break;
+                                elif moveW and not moved:
+                                    if tile['x'] == (moveUnit['x'] - 1) and tile['y'] == moveUnit['y']:
+                                        if tile['blocked'] == False:
+                                            direction = 'W'
+                                            command = {"command": move, "unit": moveUnit['id'], "dir": direction}
+                                            commands['commands'].append(command)
+                                            moved = True
+                                            break;
                 # tank moves (only unit left)
                 else :
                     if moveUnit['status'] == 'idle':
+                        moved = False
                         if moveUnit['can_attack']:
                             for tile in self.tiles:
                                 # TODO if <= 1, melee
@@ -296,12 +408,158 @@ class Game:
                                         for enemy in tile['units']:
                                             command = {"command": shoot, "unit": enemy['id'], "dx": tile['x'], "dy": tile['y']}
                                             commands['commands'].append(command)
-                        # use A* to search for opposing base TODO - random rn
-                        else:
-                            direction = random.choice(self.directions)
-                            command = {"command": move, "unit": moveUnit['id'], "dir": direction}
-                            commands['commands'].append(command)
-                #commands['commands'].append(command)
+                                            moved = True
+                        # search for nearby enemies / where to move
+                        if moved == False:
+                            moveN = False
+                            moveS = False
+                            moveE = False
+                            moveW = False
+                            nextTile = self.tiles[0]
+                            nextDist = 1000
+                            # find a tile with enemy
+                            for possNext in self.tiles:
+                                if len(possNext['units']) > 0:
+                                    dist = abs(moveUnit['x'] - possNext['x']) + abs(moveUnit['y'] - possNext['y'])
+                                    if dist < nextDist:
+                                        nextTile = possNext
+                            # found a tile, find possible options
+                            if nextTile != self.tiles[0]:
+                                # north
+                                if nextTile['y'] < moveUnit['y']:
+                                    moveN = True
+                                # south
+                                elif nextTile['y'] > moveUnit['y']:
+                                    moveS = True
+                                # east
+                                if nextTile['x'] > moveUnit['x']:
+                                    moveE = True
+                                # west
+                                elif tile['x'] < moveUnit['x']:
+                                    moveW = True
+                                for tile in self.tiles:
+                                    # north
+                                    if moveN and tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] - 1):
+                                        if tile['blocked']:
+                                            moveN = False
+                                        else:
+                                            moveN = True
+                                    # south
+                                    elif moveS and tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] + 1):
+                                        if tile['blocked']:
+                                            moveS = False
+                                        else:
+                                            moveS = True
+                                    # east
+                                    elif moveE and tile['x'] == (moveUnit['x'] + 1) and tile['y'] == moveUnit['y']:
+                                        if tile['blocked']:
+                                            moveE = False
+                                        else:
+                                            moveE = True
+                                    # west
+                                    elif moveW and tile['x'] == (moveUnit['x'] - 1) and tile['y'] == moveUnit['y']:
+                                        if tile['blocked']:
+                                            moveW = False
+                                        else:
+                                            moveW = True
+                            # if didn't find a move
+                            if not moveN and not moveS and not moveE and not moveW:
+                                for tile in self.tiles:
+                                    # north
+                                    if tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] - 1):
+                                        if tile['blocked']:
+                                            moveN = False
+                                        else:
+                                            moveN = True
+                                    # south
+                                    elif tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] + 1):
+                                        if tile['blocked']:
+                                            moveS = False
+                                        else:
+                                            moveS = True
+                                    # east
+                                    elif tile['x'] == (moveUnit['x'] + 1) and tile['y'] == moveUnit['y']:
+                                        if tile['blocked']:
+                                            moveE = False
+                                        else:
+                                            moveE = True
+                                    # west
+                                    elif tile['x'] == (moveUnit['x'] - 1) and tile['y'] == moveUnit['y']:
+                                        if tile['blocked']:
+                                            moveW = False
+                                        else:
+                                            moveW = True
+                            # actually make move
+                            for tile in self.tiles:
+                                if (moveUnit['id'] % 2) == 0:
+                                    if moveN and not moved:
+                                        if tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] - 1):
+                                            if tile['blocked'] == False:
+                                                direction = 'N'
+                                                command = {"command": move, "unit": moveUnit['id'], "dir": direction}
+                                                commands['commands'].append(command)
+                                                moved = True
+                                                break;
+                                    elif moveE and not moved:
+                                        if tile['x'] == (moveUnit['x'] + 1) and tile['y'] == moveUnit['y']:
+                                            if tile['blocked'] == False:
+                                                direction = 'E'
+                                                command = {"command": move, "unit": moveUnit['id'], "dir": direction}
+                                                commands['commands'].append(command)
+                                                moved = True
+                                                break;
+                                    elif moveS and not moved:
+                                        if tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] + 1):
+                                            if tile['blocked'] == False:
+                                                direction = 'S'
+                                                command = {"command": move, "unit": moveUnit['id'], "dir": direction}
+                                                commands['commands'].append(command)
+                                                moved = True
+                                                break;
+                                    elif moveW and not moved:
+                                        if tile['x'] == (moveUnit['x'] - 1) and tile['y'] == moveUnit['y']:
+                                            if tile['blocked'] == False:
+                                                direction = 'W'
+                                                command = {"command": move, "unit": moveUnit['id'], "dir": direction}
+                                                commands['commands'].append(command)
+                                                moved = True
+                                                break;
+                                else:
+                                    if moveW and not moved:
+                                        if tile['x'] == (moveUnit['x'] - 1) and tile['y'] == moveUnit['y']:
+                                            if tile['blocked'] == False:
+                                                direction = 'W'
+                                                command = {"command": move, "unit": moveUnit['id'], "dir": direction}
+                                                commands['commands'].append(command)
+                                                moved = True
+                                                break;
+                                    elif moveS and not moved:
+                                        if tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] + 1):
+                                            if tile['blocked'] == False:
+                                                direction = 'S'
+                                                command = {"command": move, "unit": moveUnit['id'], "dir": direction}
+                                                commands['commands'].append(command)
+                                                moved = True
+                                                break;
+                                    elif moveE and not moved:
+                                        if tile['x'] == (moveUnit['x'] + 1) and tile['y'] == moveUnit['y']:
+                                            if tile['blocked'] == False:
+                                                direction = 'E'
+                                                command = {"command": move, "unit": moveUnit['id'], "dir": direction}
+                                                commands['commands'].append(command)
+                                                moved = True
+                                                break;
+                                    elif moveN and not moved:
+                                        if tile['x'] == moveUnit['x'] and tile['y'] == (moveUnit['y'] - 1):
+                                            if tile['blocked'] == False:
+                                                direction = 'N'
+                                                command = {"command": move, "unit": moveUnit['id'], "dir": direction}
+                                                commands['commands'].append(command)
+                                                moved = True
+                                                break;
+                            # direction = random.choice(self.directions)
+                            # command = {"command": move, "unit": moveUnit['id'], "dir": direction}
+                            # commands['commands'].append(command)
         response = json.dumps(commands, separators=(',',':')) + '\n'
         print(response)
         return response
